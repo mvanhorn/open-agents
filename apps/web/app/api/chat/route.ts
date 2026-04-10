@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     return null;
   });
 
-  const [{ sandbox, skills, mcpResult }, preferences] = await Promise.all([
+  const [{ sandbox, skills }, preferences] = await Promise.all([
     runtimePromise,
     preferencesPromise,
   ]);
@@ -152,6 +152,16 @@ export async function POST(req: Request) {
     shouldAutoCommitPush &&
     (sessionRecord.autoCreatePrOverride ?? preferences?.autoCreatePr ?? false);
 
+  // Collect enabled MCP connection IDs — MCP tools are resolved inside the
+  // workflow step because ToolSet objects contain Zod schemas with Symbols
+  // that cannot be serialized across the durable workflow boundary.
+  const enabledMcpIds =
+    (
+      sessionRecord as typeof sessionRecord & {
+        enabledMcpConnectionIds?: string[];
+      }
+    ).enabledMcpConnectionIds ?? [];
+
   // Start the durable workflow
   const run = await start(runAgentWorkflow, [
     {
@@ -161,6 +171,8 @@ export async function POST(req: Request) {
       userId,
       modelId: mainModelSelection.id,
       maxSteps: 500,
+      enabledMcpConnectionIds:
+        enabledMcpIds.length > 0 ? enabledMcpIds : undefined,
       agentOptions: {
         sandbox: {
           state: activeSandboxState,
@@ -173,10 +185,6 @@ export async function POST(req: Request) {
           ? { subagentModel: subagentModelSelection }
           : {}),
         ...(skills.length > 0 && { skills }),
-        ...(Object.keys(mcpResult.tools).length > 0 && {
-          mcpTools: mcpResult.tools,
-          mcpConnectionDescriptions: mcpResult.connectionDescriptions,
-        }),
         customInstructions: assistantFileLinkPrompt,
       },
       ...(shouldAutoCommitPush &&
