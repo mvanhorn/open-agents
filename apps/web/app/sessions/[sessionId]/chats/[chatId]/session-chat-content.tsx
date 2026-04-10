@@ -56,6 +56,7 @@ import {
 import { FileSuggestionsDropdown } from "@/components/file-suggestions-dropdown";
 import { ImageAttachmentsPreview } from "@/components/image-attachments-preview";
 import { TextAttachmentsPreview } from "@/components/text-attachments-preview";
+import { McpSessionPicker } from "@/components/mcp-session-picker";
 import { ModelSelectorCompact } from "@/components/model-selector-compact";
 import { QuestionPanel } from "@/components/question-panel";
 import { SlashCommandDropdown } from "@/components/slash-command-dropdown";
@@ -3882,6 +3883,12 @@ export function SessionChatContent({
                               outputTokens={tokenUsage.outputTokens}
                               contextLimit={
                                 contextLimit ?? DEFAULT_CONTEXT_LIMIT
+                              }
+                            />
+                            <McpSessionPicker
+                              sessionId={session.id}
+                              enabledMcpConnectionIds={
+                                session.enabledMcpConnectionIds ?? []
                               }
                             />
                           </div>
