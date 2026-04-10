@@ -21,7 +21,7 @@ import {
 } from "./_lib/chat-context";
 import { resolveChatModelSelection } from "./_lib/model-selection";
 import { parseChatRequestBody, requireChatIdentifiers } from "./_lib/request";
-import { createChatRuntime } from "./_lib/runtime";
+import { createChatRuntime, closeMCPClients } from "./_lib/runtime";
 import { runAgentWorkflow } from "@/app/workflows/chat";
 import { persistAssistantMessagesWithToolResults } from "./_lib/persist-tool-results";
 
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     return null;
   });
 
-  const [{ sandbox, skills }, preferences] = await Promise.all([
+  const [{ sandbox, skills, mcpResult }, preferences] = await Promise.all([
     runtimePromise,
     preferencesPromise,
   ]);
@@ -173,6 +173,10 @@ export async function POST(req: Request) {
           ? { subagentModel: subagentModelSelection }
           : {}),
         ...(skills.length > 0 && { skills }),
+        ...(Object.keys(mcpResult.tools).length > 0 && {
+          mcpTools: mcpResult.tools,
+          mcpConnectionDescriptions: mcpResult.connectionDescriptions,
+        }),
         customInstructions: assistantFileLinkPrompt,
       },
       ...(shouldAutoCommitPush &&
@@ -209,9 +213,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const stream = createCancelableReadableStream(
+  const rawStream = createCancelableReadableStream(
     run.getReadable<WebAgentUIMessageChunk>(),
   );
+
+  // If MCP clients were created, clean them up when the stream completes
+  const hasMCPClients = mcpResult.clients.length > 0;
+  const stream = hasMCPClients
+    ? rawStream.pipeThrough(
+        new TransformStream<WebAgentUIMessageChunk, WebAgentUIMessageChunk>({
+          flush() {
+            void closeMCPClients(mcpResult.clients);
+          },
+        }),
+      )
+    : rawStream;
 
   return createUIMessageStreamResponse({
     stream,

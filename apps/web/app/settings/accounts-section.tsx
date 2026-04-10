@@ -16,6 +16,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
+import { McpConnectionsSection } from "./mcp-connections-section";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -343,8 +344,8 @@ export function AccountsSection() {
         onUnlink={handleUnlink}
       />
 
-      {/* ── Future: MCP connections would go here ── */}
-      {/* <McpConnectionsSection /> */}
+      {/* ── MCP connections ── */}
+      <McpConnectionsSection />
     </div>
   );
 }
